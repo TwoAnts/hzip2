@@ -26,9 +26,8 @@ void print_bit(char byte)
     printf("%s%c", buffer, END);
 }
 
-
-#define BS_MODE_WRITE 2
 #define BS_MODE_READ  1
+#define BS_MODE_WRITE 2
 
 char mask_low(int len)
 {
@@ -48,6 +47,10 @@ typedef struct bitstream {
     char byte_buffer;
 } *BitStream;
 
+/**
+*In read mode, use "rb" to open file.
+*In write mode, use "wb+" or "ab+" to open file.
+*/
 BitStream bs_create(FILE *source, int mode)
 {
     BitStream _bs;
@@ -70,7 +73,6 @@ int bs_read(BitStream bs)
 {
     if(!(bs->mode & BS_MODE_READ)) return -1;
     
-    
     if(bs->offset_in_byte > 7)
     {
         bs->offset_in_byte = 0;
@@ -80,7 +82,11 @@ int bs_read(BitStream bs)
     if(bs->len_bit <= 0)
     {
         bs->byte_buffer = fgetc(bs->source);
-        if(bs->byte_buffer == EOF)
+        //!!Important!!
+        //feof(): file have no byte.  ferror(): error occurred.
+        //Use feof() and ferror() to distinguish 0xff byte in binary mode
+        if(bs->byte_buffer == EOF 
+            && (feof(bs->source) || ferror(bs->source)))   
             return -1;
         bs->len_bit = 8;
     }
@@ -94,8 +100,7 @@ int bs_flush(BitStream bs)
     
     char byte_source, byte;
     int bit_written;
-    printf("len_bit_%d \n", bs->len_bit);
-    printf("offset_%d\n", bs->offset_in_byte);
+    
     if(bs->len_bit == bs->offset_in_byte) return 0;
     
     if(bs->len_bit > 0)
@@ -103,6 +108,13 @@ int bs_flush(BitStream bs)
         if(fseek(bs->source, -1, SEEK_CUR))
             return -1;
         byte_source = fgetc(bs->source);
+        if(byte_source == EOF 
+            && (feof(bs->source) || ferror(bs->source)))
+        {
+            perror("fgetc() in bs_flush()");
+            return -1;
+        }
+            
         byte = bs->byte_buffer;
         bs->byte_buffer = merge_bit(byte, byte_source, bs->len_bit);
         if(fseek(bs->source, -1, SEEK_CUR))
@@ -120,7 +132,6 @@ int bs_flush(BitStream bs)
         bit_written = bs->offset_in_byte - bs->len_bit;
     }
     
-    print_bit(bs->byte_buffer);
     char r;
     r = (char)fputc(bs->byte_buffer, bs->source);  //It will return the char written.
     if(r != bs->byte_buffer)
@@ -179,8 +190,8 @@ int main()
     fseek(f, -1, SEEK_CUR);
     printf("%c\n", fgetc(f));*/
     write_byte(0xff, bs);
-    //write_byte(0x0f, bs);
-    //write_byte(0x81, bs);
+    write_byte(0x0f, bs);
+    write_byte(0x81, bs);
     
     bs_destroy(bs);
     
