@@ -166,7 +166,6 @@ void write_byte(char byte, BitStream bs)
     for(i = 0;i < 8;i++)
     {
         bs_write(bs, (byte>>i)&1);
-        bs_flush(bs);
     }
     bs_flush(bs);
 }
@@ -182,13 +181,7 @@ int main()
     
     BitStream bs = bs_create(f, BS_MODE_WRITE);
     
-    /*fputc('a', f);
-    fseek(f, -1, SEEK_CUR);
-    printf("%c\n", fgetc(f));
-    fseek(f, -1, SEEK_CUR);
-    printf("%c\n", fputc('b', f));
-    fseek(f, -1, SEEK_CUR);
-    printf("%c\n", fgetc(f));*/
+
     write_byte(0xff, bs);
     write_byte(0x0f, bs);
     write_byte(0x81, bs);
