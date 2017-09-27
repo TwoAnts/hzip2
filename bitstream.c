@@ -8,8 +8,8 @@
 #include <memory.h>
 #endif
 
-//#define REVERSE
-#define END ('\n')
+#include "bitstream.h"
+
 void print_bit(char byte)
 {
     char buffer[9];
@@ -17,17 +17,15 @@ void print_bit(char byte)
     buffer[8] = '\0';
     for(i = 7; i >= 0; i--)
     {
-        #ifdef REVERSE
+        #ifdef PRINT_BIT_REVERSE
         buffer[i] = ((byte >> i)&1)?'1':'0';
         #else
         buffer[7-i] = ((byte >> i)&1)?'1':'0';
         #endif
     }
-    printf("%s%c", buffer, END);
+    printf("%s%c", buffer, PRINT_BIT_END);
 }
 
-#define BS_MODE_READ  1
-#define BS_MODE_WRITE 2
 
 char mask_low(int len)
 {
@@ -39,13 +37,7 @@ char merge_bit(char left, char right, int rightlen)
     return ((char)(((~mask_low(rightlen))&(left))|((mask_low(rightlen))&(right))));
 }
 
-typedef struct bitstream {
-    FILE *source;
-    int mode;
-    int len_bit;
-    int offset_in_byte;
-    char byte_buffer;
-} *BitStream;
+
 
 /**
 *In read mode, use "rb" to open file.
@@ -83,7 +75,7 @@ int bs_read(BitStream bs)
     {
         bs->byte_buffer = fgetc(bs->source);
         //!!Important!!
-        //feof(): file have no byte.  ferror(): error occurred.
+        //feof(): file has no byte.  ferror(): error occurred.
         //Use feof() and ferror() to distinguish 0xff byte in binary mode
         if(bs->byte_buffer == EOF 
             && (feof(bs->source) || ferror(bs->source)))   
@@ -145,7 +137,8 @@ int bs_flush(BitStream bs)
     return bit_written;
 }
 
-int bs_write(BitStream bs, int bit){
+int bs_write(BitStream bs, int bit)
+{
     if(!(bs->mode & BS_MODE_WRITE)) return -1;
     int bit_flushed;
     if(bs->offset_in_byte > 7)
@@ -160,7 +153,7 @@ int bs_write(BitStream bs, int bit){
     return 1;
 }
 
-void write_byte(char byte, BitStream bs)
+static void write_byte(char byte, BitStream bs)
 {
     int i;
     for(i = 0;i < 8;i++)
@@ -170,7 +163,7 @@ void write_byte(char byte, BitStream bs)
     bs_flush(bs);
 }
 
-int main()
+static int test()
 {
     //print_bit((char)0xff<<1);
     //print_bit(0xf0);
@@ -185,6 +178,7 @@ int main()
     write_byte(0xff, bs);
     write_byte(0x0f, bs);
     write_byte(0x81, bs);
+    write_byte(0x21, bs);
     
     bs_destroy(bs);
     
@@ -208,5 +202,10 @@ int main()
     fclose(f);
     
     return 0;
+}
+
+int main()
+{
+    return test();
 }
 
